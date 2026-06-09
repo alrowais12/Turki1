@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام متابعة الطلبات </title>
+    <style>
+        :root {
+            --primary-color: #1e293b;  
+            --secondary-color: #3b82f6;
+            --body-bg: #f1f5f9;        
+            --card-bg: #ffffff;        
+            --text-main: #0f172a;      
+            --text-muted: #64748b;      
+            
+            /* ألوان الحالات */
+            --bg-new: #fef3c7;          
+            --text-new: #d97706;
+            --bg-progress: #dbeafe;    
+            --text-progress: #2563eb;
+            --bg-done: #dcfce7;        
+            --text-done: #16a34a;
+            --bg-canceled: #f1f5f9;    
+            --text-canceled: #475569;
+            --bg-delayed: #fee2e2;      
+            --text-delayed: #dc2626;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: var(--body-bg); color: var(--text-main); padding: 25px; line-height: 1.6; }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary-color), #334155);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.5px; }
+        header p { color: #cbd5e1; font-size: 0.95rem; margin-top: 5px; }
+        
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-bottom: 4px solid #cbd5e1;
+        }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .card h3 { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 600; }
+        .card .count { font-size: 2.2rem; font-weight: 800; color: var(--primary-color); }
+        
+        .card.c-total { border-bottom-color: var(--secondary-color); background: #f8fafc; }
+        .card.c-new { border-bottom-color: var(--text-new); background: #fffbeb; }
+        .card.c-new .count { color: var(--text-new); }
+        .card.c-progress { border-bottom-color: var(--text-progress); background: #eff6ff; }
+        .card.c-progress .count { color: var(--text-progress); }
+        .card.c-done { border-bottom-color: var(--text-done); background: #f0fdf4; }
+        .card.c-done .count { color: var(--text-done); }
+        .card.c-canceled { border-bottom-color: var(--text-canceled); background: #f8fafc; }
+        .card.c-canceled .count { color: var(--text-canceled); }
+        .card.c-delayed { border-bottom-color: var(--text-delayed); background: #fef2f2; }
+        .card.c-delayed .count { color: var(--text-delayed); animation: pulse 2s infinite; }
+
+        @keyframes pulse { 50% { opacity: 0.7; } }
+        
+        .section-title { font-size: 1.2rem; color: var(--primary-color); font-weight: 700; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+        .controls { background: var(--card-bg); padding: 25px; border-radius: 16px; margin-bottom: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        
+        .form-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        label { display: block; font-size: 0.9rem; font-weight: 600; color: #475569; margin-bottom: 8px; }
+        input, select, textarea { width: 100%; padding: 12px 14px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; color: var(--text-main); background-color: #f8fafc; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--secondary-color); background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); }
+        
+        .btn-container { display: flex; gap: 10px; margin-top: 10px; }
+        button { background: var(--secondary-color); color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: background-color 0.2s, transform 0.1s; }
+        button:hover { background-color: #2563eb; }
+        button:active { transform: scale(0.98); }
+        .btn-secondary { background: #64748b; }
+        .btn-secondary:hover { background-color: #475569; }
+
+        .search-box { display: flex; gap: 15px; margin-top: 15px; }
+        .search-box input { flex: 3; }
+        .search-box select { flex: 1; }
+
+        .tabs { display: flex; gap: 8px; margin-bottom: 0; overflow-x: auto; padding-bottom: 2px; }
+        .tab-btn { background: #e2e8f0; color: #475569; padding: 12px 20px; border: none; border-radius: 12px 12px 0 0; cursor: pointer; font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
+        .tab-btn:hover { background: #cbd5e1; color: var(--text-main); }
+        .tab-btn.active { background: var(--card-bg); color: var(--secondary-color); border-top: 4px solid var(--secondary-color); box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.03); }
+        
+        .table-container { background: var(--card-bg); border-radius: 0 0 16px 16px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 30px; display: none; border: 1px solid #e2e8f0; border-top: none; webkit-overflow-scrolling: touch; }
+        .table-container.active { display: block; }
+        table { width: 100%; border-collapse: collapse; text-align: right; font-size: 0.95rem; min-width: 900px; }
+        th, td { padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
+        th { background-color: #f8fafc; color: var(--primary-color); font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .badge { padding: 6px 12px; border-radius: 9999px; font-weight: 600; font-size: 0.8rem; display: inline-block; text-align: center; }
+        .badge-new { background-color: var(--bg-new); color: var(--text-new); }
+        .badge-progress { background-color: var(--bg-progress); color: var(--text-progress); }
+        .badge-done { background-color: var(--bg-done); color: var(--text-done); }
+        .badge-canceled { background-color: var(--bg-canceled); color: var(--text-canceled); }
+        .badge-delayed { background-color: var(--bg-delayed); color: var(--text-delayed); animation: blinker 1.5s linear infinite; }
+
+        @keyframes blinker { 50% { opacity: 0.5; } }
+        
+        .hidden { display: none !important; }
+        
+        .action-group { display: flex; gap: 5px; position: relative; }
+        .btn-table { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; color: white; border: none; cursor: pointer; font-weight: 600; }
+        .btn-edit { background-color: #f59e0b; }
+        .btn-edit:hover { background-color: #d97706; }
+        .btn-status { background-color: #3b82f6; }
+        .btn-status:hover { background-color: #2563eb; }
+        .btn-delete { background-color: #ef4444; }
+        .btn-delete:hover { background-color: #dc2626; }
+
+        .quick-status-select {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            z-index: 100;
+            width: 130px;
+            padding: 5px;
+            font-size: 0.85rem;
+            border: 1px solid var(--secondary-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+            background: #fff;
+            border-radius: 6px;
+        }
+
+        .stock-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .stock-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-stock {
+            padding: 8px 14px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-add-stock {
+            background-color: #10b981;
+            color: white;
+        }
+        .btn-add-stock:hover {
+            background-color: #059669;
+        }
+        .btn-remove-stock {
+            background-color: #ef4444;
+            color: white;
+        }
+        .btn-remove-stock:hover {
+            background-color: #dc2626;
+        }
+
+        /* 📱 شاشات الجوال والأجهزة الذكية أقل من 768 بكسل */
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            header { padding: 20px 10px; margin-bottom: 20px; border-radius: 12px; }
+            header h1 { font-size: 1.4rem; }
+            
+            .dashboard { grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
+            .card { padding: 15px 10px; border-radius: 10px; }
+            .card h3 { font-size: 0.85rem; margin-bottom: 8px; }
+            .card .count { font-size: 1.6rem; }
+            
+            .controls { padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+            .form-group { grid-template-columns: 1fr; gap: 15px; margin-bottom: 15px; }
+            .form-group div[style*="grid-column"] { grid-column: auto !important; }
+            
+            input, select, textarea { padding: 10px 12px; font-size: 0.9rem; }
+            
+            .btn-container { flex-direction: column; gap: 8px; }
+            button { width: 100%; padding: 12px; font-size: 0.9rem; text-align: center; }
+            
+            .search-box { flex-direction: column; gap: 10px; }
+            .search-box input, .search-box select { flex: none; width: 100%; }
+            
+            .tabs { gap: 4px; }
+            .tab-btn { padding: 10px 14px; font-size: 0.85rem; border-radius: 8px 8px 0 0; }
+        }
+
+     @media (max-width:768px){
+
+    table{
+        min-width:700px;
+        font-size:0.8rem;
+    }
+
+    th,
+    td{
+        padding:10px;
+    }
+
+    .stock-item{
+        flex-wrap:wrap;
+    }
+
+    .stock-item input{
+        width:100%;
+    }
+
+    .btn-stock{
+        width:100%;
+    }
+
+    .btn-table{
+        padding:10px 14px;
+        font-size:0.9rem;
+    }
+
+}
+
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>نظام متابعة الطلبات </h1>
+        <p></p>
+    </header>
+
+    <div class="dashboard">
+        <div class="card c-total">
+            <h3>إجمالي المعاملات</h3>
+            <div class="count" id="dash-total">0</div>
+        </div>
+        <div class="card c-new">
+            <h3>طلبات جديدة</h3>
+            <div class="count" id="dash-new">0</div>
+        </div>
+        <div class="card c-progress">
+            <h3>تحت الإجراء</h3>
+            <div class="count" id="dash-progress">0</div>
+        </div>
+        <div class="card c-done">
+            <h3>مكتملة هذا الشهر</h3>
+            <div class="count" id="dash-done">0</div>
+        </div>
+        <div class="card c-canceled">
+            <h3>ملغية</h3>
+            <div class="count" id="dash-canceled">0</div>
+        </div>
+        <div class="card c-delayed">
+            <h3>طلبات متأخرة ⚠️</h3>
+            <div class="count" id="dash-delayed">0</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="section-title">📝 إضافة / تحديث بيانات معاملة</div>
+        <form id="order-form">
+            <input type="hidden" id="edit-index">
+            <div class="form-group">
+                <div>
+                    <label>نوع الطلب / الإجراء</label>
+                    <select id="req-type" onchange="toggleFormFields()" required>
+                        <option value="قطع غيار">طلب قطع غيار ومستلزمات</option>
+                        <option value="خطاب">خطاب رسمي (رقم صادر)</option>
+                        <option value="شراء">طلب شراء مباشر</option>
+                        <option value="رجيع">مواد ومعدات رجيع</option>
+                        <option value="تحويل الآليات">تحويل الآليات</option>
+                        <option value="رقم الطلب / الأخطار">رقم الطلب / الأخطار</option>
+                        <option value="أخرى">موضوع / معاملة أخرى</option>
+                    </select>
+                </div>
+                <div>
+                    <label>رقم/الطلب </label>
+                    <input type="text" id="req-id" placeholder="" required>
+                </div>
+                <div>
+                    <label>الجهة / الإدارة الطالبة</label>
+                    <input type="text" id="req-dept" placeholder="" required>
+                </div>
+                <div>
+                    <label>حالة المعاملة الحالية</label>
+                    <select id="req-status">
+                        <option value="جديد">جديد</option>
+                        <option value="تحت الإجراء">تحت الإجراء</option>
+                        <option value="مكتمل">مكتمل</option>
+                        <option value="ملغي">ملغي</option>
+                        <option value="قيد الاصلاح">قيد الاصلاح</option>
+                        <option value="تم الاصلاح">تم الاصلاح</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group" id="part-fields">
+                <div>
+                    <label>اسم القطعة</label>
+                    <input type="text" id="part-name" placeholder="">
+                </div>
+                <div>
+                    <label>رقم المخزون</label>
+                    <div class="stock-wrapper" id="stock-container">
+                        <div class="stock-item">
+                            <input type="text" class="stock-input" placeholder="أدخل رقم المخزون">
+                            <button type="button" class="btn-stock btn-add-stock" onclick="addStockField()">➕</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label>الكمية المطلوبة</label>
+                    <input type="number" id="qty-requested" value="0" min="0">
+                </div>
+                <div>
+                    <label>الكمية المستلمة</label>
+                    <input type="number" id="qty-received" value="0" min="0">
+                </div>
+            </div>
+
+            <div class="form-group hidden" id="machinery-fields">
+                <div>
+                    <label>السرية</label>
+                    <input type="text" id="mach-secret" placeholder="">
+                </div>
+                <div>
+                    <label>رقم المخزون</label>
+                    <input type="text" id="mach-stock-id" placeholder="">
+                </div>
+                <div>
+                    <label>مكان التحويل</label>
+                    <input type="text" id="mach-location" placeholder="">
+                </div>
+                <div>
+                    <label>رقم العمل</label>
+                    <input type="text" id="mach-job-id" placeholder="">
+                </div>
+                <div>
+                    <label>بيان العمل</label>
+                    <input type="text" id="mach-job-desc" placeholder="">
+                </div>
+                <div>
+                    <label>تاريخ التسليم</label>
+                    <input type="date" id="mach-delivery-date">
+                </div>
+                <div>
+                    <label>تاريخ الإقفال</label>
+                    <input type="date" id="mach-close-date">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div style="grid-column: span 2;">
+                    <label>الموضوع / تفاصيل المتابعة اليومية والإجراء القادم</label>
+                    <textarea id="req-desc" rows="2" placeholder=""></textarea>
+                </div>
+                <div>
+                    <label>مقاس الكفرات / البطاريات</label>
+                    <input type="text" id="tire-battery-size" placeholder="">
+                </div>
+                <div>
+                    <label>رقم الطلب / الأخطار</label>
+                    <input type="text" id="warehouse-id" placeholder="">
+                </div>
+                <div>
+                    <label>تاريخ القيد / الصدور</label>
+                    <input type="date" id="req-date" required>
+                </div>
+            </div>
+
+            <div class="btn-container">
+                <button type="submit" id="submit-btn">💾 حفظ المعاملة بالنظام</button>
+                <button type="button" class="btn-secondary" onclick="resetForm()">تفريغ الحقول</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="controls">
+        <div class="section-title">🔍 محرك البحث السريع والفلترة</div>
+        <div class="search-box">
+            <input type="text" id="search-input" oninput="renderAll()" placeholder="">
+            <select id="filter-status" onchange="renderAll()">
+                <option value="الكل">🔍 عرض جميع الحالات</option>
+                <option value="جديد">🟠 جديد فقط</option>
+                <option value="تحت الإجراء">🔵 تحت الإجراء فقط</option>
+                <option value="مكتمل">🟢 مكتملة فقط</option>
+                <option value="ملغي">⚫ ملغية فقط</option>
+                <option value="متأخر">🔴 معاملات متأخرة (تجاوزت 7 أيام) ⚠️</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('all-orders', this)">📋 الشاشة العامة للطلبات</button>
+        <button class="tab-btn" onclick="switchTab('parts-tab', this)">⚙️ تفاصيل كميات القطع</button>
+        <button class="tab-btn" onclick="switchTab('letters-tab', this)">✉️ صادر ومتابعة الخطابات</button>
+        <button class="tab-btn" onclick="switchTab('daily-tab', this)">📅 سجل المتابعة اليومية</button>
+    </div>
+
+    <div id="all-orders" class="table-container active">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الطلب / الصادر / الأخطار</th>
+                    <th>النوع</th>
+                    <th>رقم المخزون</th>
+                    <th>الجهة الطالبة</th>
+                    <th>البيان / الوصف</th>
+                    <th>التاريخ</th>
+                    <th>حالة المعاملة</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="table-orders-body"></tbody>
+        </table>
+    </div>
+
+    <div id="parts-tab" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الطلب</th>
+                    <th>اسم القطعة والمواصفات</th>
+                    <th>رقم المخزون</th>
+                    <th>الكمية المطلوبة</th>
+                    <th>المنصرف / المستلم</th>
+                    <th>المتبقي المعلق</th>
+                    <th>الحالة التشغيلية</th>
+                    <th>تحديث سريع</th>
+                </tr>
+            </thead>
+            <tbody id="table-parts-body"></tbody>
+        </table>
+    </div>
+
+    <div id="letters-tab" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم الصادر المرجعي</th>
+                    <th>موضوع الخطاب والملخص</th>
+                    <th>الجهة الموجّه إليها</th>
+                    <th>تاريخ التوجيه</th>
+                    <th>موقف الخطاب</th>
+                    <th>تحديث</th>
+                </tr>
+            </thead>
+            <tbody id="table-letters-body"></tbody>
+        </table>
+    </div>
+
+    <div id="daily-tab" class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>تاريخ رصد الإجراء</th>
+                    <th>رقم المعاملة (نوعها)</th>
+                    <th>ما تم في المتابعة والخطوة القادمة</th>
+                    <th>موقف المعاملة الآني</th>
+                </tr>
+            </thead>
+            <tbody id="table-daily-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let orders = JSON.parse(localStorage.getItem('system_orders_v4')) || [];
+        document.getElementById('req-date').value = new Date().toISOString().split('T')[0];
+
+        // تشغيل الفلترة المبدئية عند التحميل لضمان ظهور الحقول لأن الخيار الافتراضي هو قطع غيار
+        window.addEventListener('DOMContentLoaded', () => {
+            toggleFormFields();
+        });
+
+        function addStockField(value = "") {
+            const container = document.getElementById('stock-container');
+            const item = document.createElement('div');
+            item.className = 'stock-item';
+            item.innerHTML = `
+                <input type="text" class="stock-input" placeholder="أدخل رقم المخزون" value="${value}">
+                <button type="button" class="btn-stock btn-remove-stock" onclick="removeStockField(this)">➖</button>
+            `;
+            container.appendChild(item);
+        }
+
+        function removeStockField(btn) {
+            btn.parentElement.remove();
+        }
+
+        function resetStockFields() {
+            const container = document.getElementById('stock-container');
+            container.innerHTML = `
+                <div class="stock-item">
+                    <input type="text" class="stock-input" placeholder="أدخل رقم المخزون">
+                    <button type="button" class="btn-stock btn-add-stock" onclick="addStockField()">➕</button>
+                </div>
+            `;
+        }
+
+        function toggleFormFields() {
+            const type = document.getElementById('req-type').value;
+            const partFields = document.getElementById('part-fields');
+            const machineryFields = document.getElementById('machinery-fields');
+            
+            partFields.classList.add('hidden');
+            machineryFields.classList.add('hidden');
+
+            // تم إصلاح الشرط هنا ليتطابق مع الـ value المكتوبة وهي "قطع غيار"
+            if (type === 'قطع غيار') {
+                partFields.classList.remove('hidden');
+            } else if (type === 'تحويل الآليات') {
+                machineryFields.classList.remove('hidden');
+            }
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.table-container').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        document.getElementById('order-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const editIndex = document.getElementById('edit-index').value;
+            const stockInputs = document.querySelectorAll('.stock-input');
+            const stockIdsArray = [];
+            stockInputs.forEach(input => {
+                if(input.value.trim() !== "") {
+                    stockIdsArray.push(input.value.trim());
+                }
+            });
+
+            const orderData = {
+                type: document.getElementById('req-type').value,
+                id: document.getElementById('req-id').value,
+                dept: document.getElementById('req-dept').value,
+                status: document.getElementById('req-status').value,
+                desc: document.getElementById('req-desc').value,
+                date: document.getElementById('req-date').value,
+                partName: document.getElementById('part-name').value || '',
+                stockId: stockIdsArray, 
+                qtyRequested: parseInt(document.getElementById('qty-requested').value) || 0,
+                qtyReceived: parseInt(document.getElementById('qty-received').value) || 0,
+                tireBatterySize: document.getElementById('tire-battery-size').value || '',
+                warehouseId: document.getElementById('warehouse-id').value || '',
+                
+                machSecret: document.getElementById('mach-secret').value || '',
+                machStockId: document.getElementById('mach-stock-id').value || '',
+                machLocation: document.getElementById('mach-location').value || '',
+                machJobId: document.getElementById('mach-job-id').value || '',
+                machJobDesc: document.getElementById('mach-job-desc').value || '',
+                machDeliveryDate: document.getElementById('mach-delivery-date').value || '',
+                machCloseDate: document.getElementById('mach-close-date').value || ''
+            };
+
+            if (editIndex === "") {
+                orders.push(orderData);
+            } else {
+                orders[editIndex] = orderData;
+            }
+
+            saveAndRefresh();
+            resetForm();
+        });
+
+        function saveAndRefresh() {
+            localStorage.setItem('system_orders_v4', JSON.stringify(orders));
+            calculateDashboard();
+            renderAll();
+        }
+
+        function resetForm() {
+            document.getElementById('order-form').reset();
+            document.getElementById('edit-index').value = "";
+            document.getElementById('submit-btn').innerText = "💾 حفظ المعاملة بالنظام";
+            document.getElementById('req-date').value = new Date().toISOString().split('T')[0];
+            resetStockFields();
+            toggleFormFields();
+        }
+
+        function deleteOrder(index) {
+            if(confirm('هل أنت متأكد من حذف هذه المعاملة نهائيًا؟')) {
+                orders.splice(index, 1);
+                saveAndRefresh();
+            }
+        }
+
+        function editOrder(index) {
+            const order = orders[index];
+            document.getElementById('edit-index').value = index;
+            document.getElementById('req-type').value = order.type;
+            toggleFormFields();
+            
+            document.getElementById('req-id').value = order.id;
+            document.getElementById('req-dept').value = order.dept;
+            document.getElementById('req-status').value = order.status;
+            document.getElementById('req-desc').value = order.desc;
+            document.getElementById('req-date').value = order.date;
+            document.getElementById('part-name').value = order.partName;
+            
+            const container = document.getElementById('stock-container');
+            container.innerHTML = "";
+            if (Array.isArray(order.stockId) && order.stockId.length > 0) {
+                order.stockId.forEach((stockVal, idx) => {
+                    if (idx === 0) {
+                        container.innerHTML = `
+                            <div class="stock-item">
+                                <input type="text" class="stock-input" placeholder="أدخل رقم المخزون" value="${stockVal}">
+                                <button type="button" class="btn-stock btn-add-stock" onclick="addStockField()">➕</button>
+                            </div>
+                        `;
+                    } else {
+                        addStockField(stockVal);
+                    }
+                });
+            } else {
+                const oldStockVal = typeof order.stockId === 'string' ? order.stockId : '';
+                container.innerHTML = `
+                    <div class="stock-item">
+                        <input type="text" class="stock-input" placeholder="أدخل رقم المخزون" value="${oldStockVal}">
+                        <button type="button" class="btn-stock btn-add-stock" onclick="addStockField()">➕</button>
+                    </div>
+                `;
+            }
+
+            document.getElementById('qty-requested').value = order.qtyRequested;
+            document.getElementById('qty-received').value = order.qtyReceived;
+            document.getElementById('tire-battery-size').value = order.tireBatterySize || '';
+            document.getElementById('warehouse-id').value = order.warehouseId || '';
+
+            document.getElementById('mach-secret').value = order.machSecret || '';
+            document.getElementById('mach-stock-id').value = order.machStockId || '';
+            document.getElementById('mach-location').value = order.machLocation || '';
+            document.getElementById('mach-job-id').value = order.machJobId || '';
+            document.getElementById('mach-job-desc').value = order.machJobDesc || '';
+            document.getElementById('mach-delivery-date').value = order.machDeliveryDate || '';
+            document.getElementById('mach-close-date').value = order.machCloseDate || '';
+
+            document.getElementById('submit-btn').innerText = "🔄 تحديث المعاملة";
+            window.scrollTo({ top: 200, behavior: 'smooth' });
+        }
+
+        function quickUpdateStatus(index, event, btnElement) {
+            event.stopPropagation();
+            
+            const existingSelect = document.querySelector('.quick-status-select');
+            if (existingSelect) existingSelect.remove();
+
+            const currentStatus = orders[index].status;
+            const select = document.createElement('select');
+            select.className = 'quick-status-select';
+            
+            const options = ['جديد', 'تحت الإجراء', 'مكتمل', 'ملغي'];
+            options.forEach(status => {
+                const opt = document.createElement('option');
+                opt.value = status;
+                opt.innerText = status;
+                if (status === currentStatus) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            btnElement.parentElement.appendChild(select);
+            select.focus();
+
+            select.addEventListener('change', function() {
+                orders[index].status = select.value;
+                saveAndRefresh();
+                select.remove();
+            });
+
+            select.addEventListener('blur', function() {
+                setTimeout(() => select.remove(), 200);
+            });
+        }
+
+        function isDelayed(order) {
+            if (order.status === 'مكتمل' || order.status === 'ملغي') return false;
+            const orderDate = new Date(order.date);
+            const today = new Date();
+            const diffTime = Math.abs(today - orderDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays > 7;
+        }
+
+        function calculateDashboard() {
+            let total = orders.length;
+            let newCount = 0;
+            let progressCount = 0;
+            let doneCount = 0;
+            let canceledCount = 0;
+            let delayedCount = 0;
+
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
+            orders.forEach(o => {
+                if (o.status === 'جديد') newCount++;
+                if (o.status === 'تحت الإجراء') progressCount++;
+                if (o.status === 'ملغي') canceledCount++;
+                
+                if (o.status === 'مكتمل') {
+                    const oDate = new Date(o.date);
+                    if(oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) {
+                        doneCount++;
+                    }
+                }
+                if (isDelayed(o)) delayedCount++;
+            });
+
+            document.getElementById('dash-total').innerText = total;
+            document.getElementById('dash-new').innerText = newCount;
+            document.getElementById('dash-progress').innerText = progressCount;
+            document.getElementById('dash-done').innerText = doneCount;
+            document.getElementById('dash-canceled').innerText = canceledCount;
+            document.getElementById('dash-delayed').innerText = delayedCount;
+        }
+
+        function getStatusBadge(order) {
+            if (isDelayed(order)) {
+                return `<span class="badge badge-delayed">متأخر (${order.status})</span>`;
+            }
+            switch (order.status) {
+                case 'جديد': return `<span class="badge badge-new">جديد</span>`;
+                case 'تحت الإجراء': return `<span class="badge badge-progress">تحت الإجراء</span>`;
+                case 'مكتمل': return `<span class="badge badge-done">مكتمل</span>`;
+                case 'ملغي': return `<span class="badge badge-canceled">ملغي</span>`;
+                default: return `<span class="badge">${order.status}</span>`;
+            }
+        }
+
+        function renderAll() {
+            const searchTxt = document.getElementById('search-input').value.toLowerCase();
+            const filterStat = document.getElementById('filter-status').value;
+
+            let ordersBody = '';
+            let partsBody = '';
+            let lettersBody = '';
+            let dailyBody = '';
+
+            orders.forEach((o, index) => {
+                const stockText = Array.isArray(o.stockId) ? o.stockId.join(' ') : (o.stockId || '');
+                const combinedText = `${o.id} ${o.type} ${o.dept} ${o.desc} ${stockText} ${o.partName} ${o.machJobId} ${o.machJobDesc}`.toLowerCase();
+                
+                const matchesSearch = combinedText.includes(searchTxt);
+                let matchesFilter = false;
+                
+                if (filterStat === 'الكل') {
+                    matchesFilter = true;
+                } else if (filterStat === 'متأخر') {
+                    matchesFilter = isDelayed(o);
+                } else {
+                    matchesFilter = (o.status === filterStat);
+                }
+
+                if (matchesSearch && matchesFilter) {
+                    const badge = getStatusBadge(o);
+                    const stockDisplay = Array.isArray(o.stockId) ? o.stockId.join(', ') : (o.stockId || '---');
+                    
+                    ordersBody += `
+                        <tr>
+                            <td><strong>${o.id}</strong></td>
+                            <td><span style="color:var(--secondary-color); font-weight:600;">${o.type}</span></td>
+                            <td><span style="font-family:monospace; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${stockDisplay || '---'}</span></td>
+                            <td>${o.dept}</td>
+                            <td>${o.desc ? o.desc.substring(0, 40) + (o.desc.length > 40 ? '...' : '') : '---'}</td>
+                            <td>${o.date}</td>
+                            <td>${badge}</td>
+                            <td>
+                                <div class="action-group">
+                                    <button class="btn-table btn-edit" onclick="editOrder(${index})">✏️</button>
+                                    <button class="btn-table btn-delete" onclick="deleteOrder(${index})">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+
+                    if (o.type === 'قطع غيار') {
+                        const remaining = (o.qtyRequested - o.qtyReceived);
+                        partsBody += `
+                            <tr>
+                                <td><strong>${o.id}</strong></td>
+                                <td style="color:#0284c7; font-weight:600;">${o.partName || '---'}</td>
+                                <td><span style="font-family:monospace; background:#f1f5f9; padding:2px 6px; border-radius:4px;">${stockDisplay}</span></td>
+                                <td><span style="color:var(--text-main); font-weight:700;">${o.qtyRequested}</span></td>
+                                <td><span style="color:var(--text-done); font-weight:700;">${o.qtyReceived}</span></td>
+                                <td><span style="color:${remaining > 0 ? 'var(--text-delayed)' : 'var(--text-done)'}; font-weight:700;">${remaining}</span></td>
+                                <td>${badge}</td>
+                                <td>
+                                    <div class="action-group">
+                                        <button class="btn-table btn-status" onclick="quickUpdateStatus(${index}, event, this)">⚡ الحالة</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    if (o.type === 'خطاب') {
+                        lettersBody += `
+                            <tr>
+                                <td><strong>${o.id}</strong></td>
+                                <td>${o.desc || '---'}</td>
+                                <td style="color:#7c3aed; font-weight:600;">${o.dept}</td>
+                                <td>${o.date}</td>
+                                <td>${badge}</td>
+                                <td>
+                                    <div class="action-group">
+                                        <button class="btn-table btn-status" onclick="quickUpdateStatus(${index}, event, this)">⚡ الحالة</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    dailyBody += `
+                        <tr>
+                            <td>${o.date}</td>
+                            <td><strong>${o.id}</strong> <span style="font-size:0.8rem; color:var(--text-muted);">(${o.type})</span></td>
+                            <td>${o.desc || 'لا توجد تفاصيل مرصودة حالياً'}</td>
+                            <td>${badge}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            document.getElementById('table-orders-body').innerHTML = ordersBody || '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">🔍 لا توجد معاملات مطابقة للبحث حالياً</td></tr>';
+            document.getElementById('table-parts-body').innerHTML = partsBody || '<tr><td colspan="8" style="text-align:center; color:var(--text-muted); padding:30px;">⚙️ لا توجد طلبات قطع غيار متوفرة بالنظام</td></tr>';
+            document.getElementById('table-letters-body').innerHTML = lettersBody || '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:30px;">✉️ لا توجد خطابات رسمية مسجلة حالياً</td></tr>';
+            document.getElementById('table-daily-body').innerHTML = dailyBody || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:30px;">📅 السجل اليومي فارغ</td></tr>';
+        }
+
+        calculateDashboard();
+        renderAll();
+    </script>
+
+</body>
+</html>
