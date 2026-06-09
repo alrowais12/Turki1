@@ -275,7 +275,6 @@
                         <option value="شراء">طلب شراء مباشر</option>
                         <option value="رجيع">مواد ومعدات رجيع</option>
                         <option value="تحويل الآليات">تحويل الآليات</option>
-                        <option value="رقم الطلب / الأخطار">رقم الطلب / الأخطار</option>
                         <option value="أخرى">موضوع / معاملة أخرى</option>
                     </select>
                 </div>
@@ -284,7 +283,7 @@
                     <input type="text" id="req-id" placeholder="" required>
                 </div>
                 <div>
-                    <label>الجهة / الإدارة الطالبة</label>
+                    <label>الجهة</label>
                     <input type="text" id="req-dept" placeholder="" required>
                 </div>
                 <div>
@@ -357,7 +356,7 @@
 
             <div class="form-group">
                 <div style="grid-column: span 2;">
-                    <label>الموضوع / تفاصيل المتابعة اليومية والإجراء القادم</label>
+                    <label>التفاصيل</label>
                     <textarea id="req-desc" rows="2" placeholder=""></textarea>
                 </div>
                 <div>
@@ -365,17 +364,17 @@
                     <input type="text" id="tire-battery-size" placeholder="">
                 </div>
                 <div>
-                    <label>رقم الطلب / الأخطار</label>
+                    <label>رقم / الأخطار</label>
                     <input type="text" id="warehouse-id" placeholder="">
                 </div>
                 <div>
-                    <label>تاريخ القيد / الصدور</label>
+                    <label>تاريخ المعامله</label>
                     <input type="date" id="req-date" required>
                 </div>
             </div>
 
             <div class="btn-container">
-                <button type="submit" id="submit-btn">💾 حفظ المعاملة بالنظام</button>
+                <button type="submit" id="submit-btn">💾 حفظ المعاملة </button>
                 <button type="button" class="btn-secondary" onclick="resetForm()">تفريغ الحقول</button>
             </div>
         </form>
